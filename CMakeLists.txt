@@ -11,5 +11,7 @@ endif()
 
 project ("sP-mini-project")
 
+include(FetchContent)
+
 # Include sub-projects.
 add_subdirectory ("sP-mini-project")

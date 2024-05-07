@@ -2,6 +2,8 @@
 # project specific logic here.
 #
 
+find_package(plplot CONFIG REQUIRED)
+
 include(doctest.cmake)
 enable_testing()
 
@@ -9,6 +11,8 @@ enable_testing()
 add_executable (unit_tests "unit_tests.cpp" "library/stosim.cpp")
 target_link_libraries(unit_tests PRIVATE doctest::doctest_with_main)
 
+add_executable (examples "examples.cpp" "library/stosim.cpp")
+target_link_libraries(examples PRIVATE PLPLOT::plplotcxx)
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET unit_tests PROPERTY CXX_STANDARD 23)

@@ -2,23 +2,25 @@
 #include <numeric>
 #include <random>
 #include <algorithm>
+#include <optional>
 namespace stosim {
-	AgentSetAndRate AgentSet::operator>>(double rate) {
+	AgentSetAndRate AgentSet::operator>>(double rate) const {
 		return AgentSetAndRate(*this, rate);
 	}
 
-	ReactionRule AgentSetAndRate::operator>>=(AgentSet product) {
+	ReactionRule AgentSetAndRate::operator>>=(AgentSet product) const {
 		return ReactionRule(_agent_set, _rate, std::move(product));
 	}
 
-	std::optional<std::tuple<const ReactionRule&, double>> Vessel::get_next_reaction_rule() const
+	std::optional<std::tuple<std::size_t, double>> Vessel::get_next_reaction_rule() const
 	{
 		static std::random_device rd;
 		static auto mt = std::mt19937(rd());
 
-		const ReactionRule* current_best = nullptr;
+		std::optional<std::size_t> current_best = std::nullopt;
 		double lowest_delay = std::numeric_limits<double>::max();
-		for (const auto& reaction_rule : _reaction_rules) {
+		for (auto i = 0; i < _reaction_rules.size(); i++) {
+			const auto& reaction_rule = _reaction_rules[i];
 			auto reactant_tokens = reaction_rule.get_reactants().get_agent_tokens();
 			
 			auto reactant_product = 1;
@@ -31,12 +33,13 @@ namespace stosim {
 				auto delay = distribution(mt);
 
 				if (delay < lowest_delay) {
-					current_best = &reaction_rule;
+					current_best.emplace(i);
+					lowest_delay = delay;
 				}
 			}
 		}
-		if (current_best != nullptr) {
-			return std::make_optional(std::make_tuple(*current_best, lowest_delay));
+		if (current_best != std::nullopt) {
+			return std::make_optional(std::make_tuple(current_best.value(), lowest_delay));
 		}
 		return std::nullopt;
 	}
@@ -58,7 +61,10 @@ namespace stosim {
 			return;
 		}
 		
-		auto [rule, delay] = rule_and_delay.value();
+		auto [rule_index, delay] = rule_and_delay.value();
+
+		const auto& rule = _reaction_rules[rule_index];
+
 		_current_time += delay;
 		
 		for (auto reactant : rule.get_reactants().get_agent_tokens()) {

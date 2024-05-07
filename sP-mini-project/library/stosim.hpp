@@ -37,7 +37,7 @@ namespace stosim {
 			return _agents;
 		}
 		
-		AgentSetAndRate operator>>(double rate);
+		AgentSetAndRate operator>>(double rate) const;
 	};
 
 	class AgentSetAndRate {
@@ -59,7 +59,7 @@ namespace stosim {
 			return _rate;
 		}
 
-		ReactionRule operator>>=(AgentSet product);
+		ReactionRule operator>>=(AgentSet product) const;
 	};
 
 	class ReactionRule {
@@ -94,7 +94,7 @@ namespace stosim {
 		std::vector<int> _state;
 		double _current_time;
 
-		std::optional<std::tuple<const ReactionRule&, double>> get_next_reaction_rule() const;
+		std::optional<std::tuple<std::size_t, double>> get_next_reaction_rule() const;
 	public:
 		Vessel(std::string name) : _name(std::move(name)), _current_time(0.0) {}
 
@@ -105,10 +105,22 @@ namespace stosim {
 			return AgentSet(id);
 		}
 
+		void add(ReactionRule rule) {
+			_reaction_rules.push_back(std::move(rule));
+		}
+
+		AgentSet environment() {
+			return AgentSet();
+		}
+
 		std::vector<std::tuple<std::string, int>> translate_state(std::vector<int> state) const;
 
 		const std::vector<int>& get_state() const {
 			return _state;
+		}
+
+		double get_time() const {
+			return _current_time;
 		}
 
 		void Step();
