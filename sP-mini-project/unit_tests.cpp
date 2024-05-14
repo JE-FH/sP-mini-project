@@ -51,8 +51,6 @@ TEST_CASE("AgentSet") {
 	}
 
 	SUBCASE("Agents can be combined") {
-		auto vessel = stosim::Vessel("vessel test");
-
 		auto combined = a + b;
 		auto combined_again = combined + c;
 
@@ -76,8 +74,8 @@ TEST_CASE("AgentSetAndRate") {
 		auto a = vessel.add("a", 1);
 		auto b = vessel.add("b", 1);
 
-		auto a_token = *std::cbegin(a.get_agent_tokens());
-		auto b_token = *std::cbegin(b.get_agent_tokens());
+		auto a_token = a.get_agent_token();
+		auto b_token = b.get_agent_token();
 
 		auto set_and_rate = (a + b) >> 1.0;
 
@@ -98,9 +96,9 @@ TEST_CASE("ReactionRule") {
 		auto b = vessel.add("b", 1);
 		auto c = vessel.add("c", 1);
 
-		auto a_token = *std::cbegin(a.get_agent_tokens());
-		auto b_token = *std::cbegin(b.get_agent_tokens());
-		auto c_token = *std::cbegin(c.get_agent_tokens());
+		auto a_token = a.get_agent_token();
+		auto b_token = b.get_agent_token();
+		auto c_token = c.get_agent_token();
 
 		auto rule = (a + b) >> 1.2 >>= c + a;
 		auto reactants_tokens = rule.get_reactants().get_agent_tokens();
@@ -119,14 +117,48 @@ TEST_CASE("ReactionRule") {
 }
 
 TEST_CASE("Vessel") {
-	SUBCASE("Vessel should be printable") {
-		auto vessel = stosim::Vessel("vessel test");
-		auto a = vessel.add("a", 1);
-		auto b = vessel.add("b", 2);
-		auto c = vessel.add("c", 3);
-		std::stringstream ss;
-		ss << vessel;
+	auto v = stosim::Vessel("vessel test");
+	auto A = v.add("A", 23);
+	auto DA = v.add("DA", 1);
+	auto D_A = v.add("D_A", 673);
+	auto DR = v.add("DR", 13);
+	auto D_R = v.add("D_R", 5);
+	auto MA = v.add("MA", 14);
+	auto MR = v.add("MR", 52);
 
-		CHECK(ss.str() == "vessel<a=1, b=2, c=3>");
+	auto gamma = 2.3;
+	auto theta = 6.23;
+	auto alpha = 0.53;
+
+	v.add((A + DA) >> gamma >>= D_A);
+	v.add(D_A >> theta >>= DA + A);
+	v.add((A + DR) >> gamma >>= D_R);
+	v.add(D_R >> theta >>= DR + A);
+	v.add(D_A >> alpha >>= MA + D_A);
+	v.add(DA >> alpha >>= MA + DA);
+	v.add(D_R >> alpha >>= MR + D_R);
+
+	SUBCASE("Vessel should be printable") {
+		std::stringstream ss;
+		ss << v;
+
+		CHECK(ss.str() == "vessel<A=23, DA=1, D_A=673, DR=13, D_R=5, MA=14, MR=52>");
+	}
+
+	SUBCASE("Vessel pretty printing should work") {
+		std::stringstream prettyPrinted;
+		v.pretty_print(prettyPrinted);
+
+		std::string expected = 
+R"(A + DA --2.3> D_A
+D_A --6.23> A + DA
+A + DR --2.3> D_R
+D_R --6.23> A + DR
+D_A --0.53> D_A + MA
+DA --0.53> DA + MA
+D_R --0.53> D_R + MR
+)";
+
+		CHECK(prettyPrinted.str() == expected);
 	}
 }

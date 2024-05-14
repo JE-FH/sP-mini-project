@@ -3,6 +3,9 @@
 #include <random>
 #include <algorithm>
 #include <optional>
+#include <iterator>
+#include <numeric>
+#include <ranges>
 namespace stosim {
 	AgentSetAndRate AgentSet::operator>>(double rate) const {
 		return AgentSetAndRate(*this, rate);
@@ -12,20 +15,19 @@ namespace stosim {
 		return ReactionRule(_agent_set, _rate, std::move(product));
 	}
 
-	std::optional<std::tuple<std::size_t, double>> Vessel::get_next_reaction_rule() const
+	std::optional<std::tuple<std::size_t, double>> Vessel::get_next_reaction_rule(const std::vector<agent_count_t>& state) const
 	{
-		static std::random_device rd;
-		static auto mt = std::mt19937(rd());
+		static thread_local auto mt = std::mt19937(std::random_device()());
 
 		std::optional<std::size_t> current_best = std::nullopt;
 		double lowest_delay = std::numeric_limits<double>::max();
 		for (auto i = 0; i < _reaction_rules.size(); i++) {
 			const auto& reaction_rule = _reaction_rules[i];
-			auto reactant_tokens = reaction_rule.get_reactants().get_agent_tokens();
+			const auto& reactant_tokens = reaction_rule.get_reactants().get_agent_tokens();
 			
 			auto reactant_product = 1;
 			for (const auto& token : reactant_tokens) {
-				reactant_product = reactant_product * _state[token];
+				reactant_product = reactant_product * state[token];
 			}
 
 			if (reactant_product > 0) {
@@ -44,9 +46,24 @@ namespace stosim {
 		return std::nullopt;
 	}
 
-	std::vector<std::tuple<std::string, int>> Vessel::translate_state(std::vector<int> state) const
+	AgentSet Vessel::add(std::string name, agent_count_t init) {
+		auto id = _initial_state.size();
+		_reaction_symbols.store(id, std::move(name));
+		_initial_state.push_back(init);
+		return AgentSet(id);
+	}
+
+	void Vessel::add(ReactionRule rule) {
+		_reaction_rules.push_back(std::move(rule));
+	}
+
+	AgentSet Vessel::environment() const {
+		return AgentSet();
+	}
+
+	std::vector<std::tuple<std::string, agent_count_t>> Vessel::translate_state(std::vector<agent_count_t> state) const
 	{
-		std::vector<std::tuple<std::string, int>> rv;
+		std::vector<std::tuple<std::string, agent_count_t>> rv;
 		for (auto i = 0; i < state.size(); i++) {
 			auto name = _reaction_symbols.lookup(i);
 			rv.push_back(std::make_tuple(name, state[i]));
@@ -54,30 +71,106 @@ namespace stosim {
 		return rv;
 	}
 
-	void Vessel::Step()
+	coro::generator<VesselStep> Vessel::simulate() const
 	{
-		auto rule_and_delay = get_next_reaction_rule();
-		if (!rule_and_delay.has_value()) {
-			return;
-		}
-		
-		auto [rule_index, delay] = rule_and_delay.value();
+		auto state = _initial_state;
+		auto time = 0.0;
+		co_yield VesselStep{
+				.state = state,
+				.time = time
+		};
+		while (true) {
+			auto rule_and_delay = get_next_reaction_rule(state);
+			if (!rule_and_delay.has_value()) {
+				co_return;
+			}
 
-		const auto& rule = _reaction_rules[rule_index];
+			auto [rule_index, delay] = rule_and_delay.value();
 
-		_current_time += delay;
-		
-		for (auto reactant : rule.get_reactants().get_agent_tokens()) {
-			_state[reactant] -= 1;
-		}
-		
-		for (auto product : rule.get_products().get_agent_tokens()) {
-			_state[product] += 1;
+			const auto& rule = _reaction_rules[rule_index];
+
+			time += delay;
+
+			for (auto reactant : rule.get_reactants().get_agent_tokens()) {
+				state[reactant] -= 1;
+			}
+
+			for (auto product : rule.get_products().get_agent_tokens()) {
+				state[product] += 1;
+			}
+
+			co_yield VesselStep{
+				.state = state,
+				.time = time
+			};
 		}
 	}
 
+	void Vessel::pretty_print(std::ostream& out, const AgentSet& agents) const
+	{
+		if (agents.get_agent_tokens().size() == 0) {
+			out << "Environment";
+			return;
+		}
+		bool first = true;
+		for (auto agent_token : agents.get_agent_tokens()) {
+			if (!first) {
+				out << " + ";
+			}
+			first = false;
+			out << _reaction_symbols.lookup(agent_token);
+		}
+
+	}
+	
+	void Vessel::pretty_print(std::ostream& out) const
+	{
+		for (const auto& reaction_rule : _reaction_rules) {
+			pretty_print(out, reaction_rule.get_reactants());
+
+			out << " --" << reaction_rule.get_rate() << "> ";
+
+			pretty_print(out, reaction_rule.get_products());
+			
+			out << "\n";
+		}
+	}
+
+	void Vessel::pretty_print_dot(std::ostream& out) const
+	{
+		out << "digraph {\n";
+		auto agent_symbol_map = _reaction_symbols.get_map();
+		out << R"(env[label="Environment", shape="box", style="filled", fillcolor="red"];)" << '\n';
+		for (const auto& agent : agent_symbol_map) {
+			out << "s" << agent.first << "[label=\"" << agent.second << R"(", shape="box", style="filled", fillcolor="cyan"];)" << "\n";
+		}
+		int reaction_id = 0;
+		for (const auto& reaction : _reaction_rules) {
+			std::string reaction_name = "r" + std::to_string(reaction_id++);
+			out << reaction_name << "[label=\"" << reaction.get_rate() << R"(", shape="oval", style="filled", fillcolor="yellow"];)" << "\n";
+			for (const auto& reactant : reaction.get_reactants().get_agent_tokens()) {
+				out << "s" << reactant << " -> " << reaction_name << ";\n";
+			}
+			if (reaction.get_products().get_agent_tokens().size() == 0) {
+				out << reaction_name << " -> env;\n";
+			}
+			else {
+				for (const auto& product : reaction.get_products().get_agent_tokens()) {
+					out << reaction_name << " -> " << "s" << product << ";\n";
+				}
+			}
+		}
+
+		out << "}";
+	}
+
+	const std::vector<agent_count_t>& Vessel::get_initial_state() const
+	{
+		return _initial_state;
+	}
+
 	std::ostream& operator<<(std::ostream& out, const Vessel& vessel) {
-		auto translated = vessel.translate_state(vessel.get_state());
+		auto translated = vessel.translate_state(vessel.get_initial_state());
 		out << "vessel<";
 		bool first = true;
 		for (const auto& [agent_name, count] : translated) {

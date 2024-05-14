@@ -4,6 +4,8 @@
 #include "SymbolTable.hpp"
 #include <ostream>
 #include <optional>
+#include <future>
+#include <coro/coro.hpp>
 
 namespace stosim {
 	using agent_token_t = size_t;
@@ -28,13 +30,20 @@ namespace stosim {
 
 		AgentSet operator+(const AgentSet& other) const {
 			AgentSet rv;
-			rv._agents.insert(std::cbegin(_agents), std::cend(_agents));
-			rv._agents.insert(std::cbegin(other._agents), std::cend(other._agents));
+			rv._agents.insert_range(_agents);
+			rv._agents.insert_range(other._agents);
 			return rv;
 		}
 
 		const std::set<agent_token_t>& get_agent_tokens() const {
 			return _agents;
+		}
+
+		const agent_token_t get_agent_token() const {
+			if (_agents.size() != 1) {
+				throw std::exception("Getting agent token is only supported when the agent set has a single token");
+			}
+			return *std::cbegin(_agents);
 		}
 		
 		AgentSetAndRate operator>>(double rate) const;
@@ -87,43 +96,53 @@ namespace stosim {
 		}
 	};
 	
+	using agent_count_t = size_t;
+
+	struct VesselStep {
+		const std::vector<agent_count_t>& state;
+		double time;
+	};
+
 	class Vessel {
 		std::string _name;
 		std::vector<ReactionRule> _reaction_rules;
 		SymbolTable<agent_token_t, std::string> _reaction_symbols;
-		std::vector<int> _state;
-		double _current_time;
+		std::vector<agent_count_t> _initial_state;
 
-		std::optional<std::tuple<std::size_t, double>> get_next_reaction_rule() const;
+		std::optional<std::tuple<std::size_t, double>> get_next_reaction_rule(const std::vector<agent_count_t>& state) const;
+		void pretty_print(std::ostream& out, const AgentSet& agents) const;
+
 	public:
-		Vessel(std::string name) : _name(std::move(name)), _current_time(0.0) {}
+		Vessel(std::string name) : _name(std::move(name)) {}
 
-		AgentSet add(std::string name, int init) {
-			auto id = _state.size();
-			_reaction_symbols.store(id, std::move(name));
-			_state.push_back(init);
-			return AgentSet(id);
+		AgentSet add(std::string name, agent_count_t init);
+		void add(ReactionRule rule);
+
+		AgentSet environment() const;
+
+		std::vector<std::tuple<std::string, agent_count_t>> translate_state(std::vector<agent_count_t> state) const;
+		coro::generator<VesselStep> simulate() const;
+
+		template<typename F>
+		coro::generator<std::invoke_result_t<F, coro::generator<VesselStep>>> multi_simulate(size_t simulation_count, F f) const {
+			std::vector<std::future<std::invoke_result_t<F, coro::generator<VesselStep>>>> futures;
+			for (auto i = 0; i < simulation_count; i++) {
+				futures.push_back(std::async(std::launch::async, [&]() {
+					return f(simulate());
+				}));
+			}
+
+			for (auto& future : futures) {
+				co_yield future.get();
+			}
+			
+			co_return;
 		}
 
-		void add(ReactionRule rule) {
-			_reaction_rules.push_back(std::move(rule));
-		}
+		void pretty_print(std::ostream& out) const;
+		void pretty_print_dot(std::ostream& out) const;
 
-		AgentSet environment() {
-			return AgentSet();
-		}
-
-		std::vector<std::tuple<std::string, int>> translate_state(std::vector<int> state) const;
-
-		const std::vector<int>& get_state() const {
-			return _state;
-		}
-
-		double get_time() const {
-			return _current_time;
-		}
-
-		void Step();
+		const std::vector<agent_count_t>& get_initial_state() const;
 	};
 
 	std::ostream& operator<<(std::ostream& out, const Vessel& vessel);
