@@ -104,36 +104,6 @@ namespace stosim {
 		}
 	}
 
-	void Vessel::pretty_print(std::ostream& out, const AgentSet& agents) const
-	{
-		if (agents.get_agent_tokens().size() == 0) {
-			out << "Environment";
-			return;
-		}
-		bool first = true;
-		for (auto agent_token : agents.get_agent_tokens()) {
-			if (!first) {
-				out << " + ";
-			}
-			first = false;
-			out << _reaction_symbols.lookup(agent_token);
-		}
-
-	}
-	
-	void Vessel::pretty_print(std::ostream& out) const
-	{
-		for (const auto& reaction_rule : _reaction_rules) {
-			pretty_print(out, reaction_rule.get_reactants());
-
-			out << " --" << reaction_rule.get_rate() << "> ";
-
-			pretty_print(out, reaction_rule.get_products());
-			
-			out << "\n";
-		}
-	}
-
 	void Vessel::pretty_print_dot(std::ostream& out) const
 	{
 		out << "digraph {\n";
@@ -167,18 +137,31 @@ namespace stosim {
 		return _initial_state;
 	}
 
-	std::ostream& operator<<(std::ostream& out, const Vessel& vessel) {
-		auto translated = vessel.translate_state(vessel.get_initial_state());
-		out << "vessel<";
+	void concat_agents(std::ostream& out, const AgentSet& agent_set, const SymbolTable<agent_token_t, std::string>& symbol_table) {
+		if (agent_set.get_agent_tokens().size() == 0) {
+			out << "Environment";
+			return;
+		}
 		bool first = true;
-		for (const auto& [agent_name, count] : translated) {
+		for (auto agent_token : agent_set.get_agent_tokens()) {
 			if (!first) {
-				out << ", ";
+				out << " + ";
 			}
 			first = false;
-			out << agent_name << "=" << count;
+			out << symbol_table.lookup(agent_token);
 		}
-		out << ">";
+	}
+
+	std::ostream& operator<<(std::ostream& out, const Vessel& vessel) {
+		for (const auto& reaction_rule : vessel._reaction_rules) {
+			concat_agents(out, reaction_rule.get_reactants(), vessel._reaction_symbols);
+
+			out << " --" << reaction_rule.get_rate() << "> ";
+
+			concat_agents(out, reaction_rule.get_products(), vessel._reaction_symbols);
+
+			out << "\n";
+		}
 		return out;
 	}
 }

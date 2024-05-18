@@ -89,9 +89,9 @@ void print_reactions(std::ostream& results) {
 	auto setup = covid19(10000);
 	auto circadian_rhythm_vessel = circadian_rhythm();
 	results << "\nCovid 19 reactions:\n";
-	setup.vessel.pretty_print(results);
+	results << setup.vessel;
 	results << "\nCircadian rhythm reactions:\n";
-	circadian_rhythm_vessel.pretty_print(results);
+	results << circadian_rhythm_vessel;
 
 	std::ofstream covid19_dot("covid19.dot");
 	std::ofstream circadian_rhythm_dot("circadian rhythm.dot");

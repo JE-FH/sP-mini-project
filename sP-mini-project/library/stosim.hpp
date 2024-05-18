@@ -138,11 +138,10 @@ namespace stosim {
 			co_return;
 		}
 
-		void pretty_print(std::ostream& out) const;
+		friend std::ostream& operator<<(std::ostream& out, const Vessel& vessel);
+
 		void pretty_print_dot(std::ostream& out) const;
 
 		const std::vector<agent_count_t>& get_initial_state() const;
 	};
-
-	std::ostream& operator<<(std::ostream& out, const Vessel& vessel);
 }

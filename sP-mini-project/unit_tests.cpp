@@ -138,16 +138,10 @@ TEST_CASE("Vessel") {
 	v.add(DA >> alpha >>= MA + DA);
 	v.add(D_R >> alpha >>= MR + D_R);
 
-	SUBCASE("Vessel should be printable") {
-		std::stringstream ss;
-		ss << v;
-
-		CHECK(ss.str() == "vessel<A=23, DA=1, D_A=673, DR=13, D_R=5, MA=14, MR=52>");
-	}
 
 	SUBCASE("Vessel pretty printing should work") {
 		std::stringstream prettyPrinted;
-		v.pretty_print(prettyPrinted);
+		prettyPrinted << v;
 
 		std::string expected = 
 R"(A + DA --2.3> D_A
