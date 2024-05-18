@@ -9,6 +9,7 @@
 
 namespace stosim {
 	using agent_token_t = size_t;
+	using agent_count_t = size_t;
 	
 	class AgentSetAndRate;
 	class ReactionRule;
@@ -96,10 +97,8 @@ namespace stosim {
 		}
 	};
 	
-	using agent_count_t = size_t;
-
-	struct VesselStep {
-		const std::vector<agent_count_t>& state;
+	struct VesselState {
+		std::vector<agent_count_t> agent_count;
 		double time;
 	};
 
@@ -109,7 +108,7 @@ namespace stosim {
 		SymbolTable<agent_token_t, std::string> _reaction_symbols;
 		std::vector<agent_count_t> _initial_state;
 
-		std::optional<std::tuple<std::size_t, double>> get_next_reaction_rule(const std::vector<agent_count_t>& state) const;
+		std::optional<std::tuple<std::size_t, double>> get_next_reaction_rule(const std::vector<agent_count_t>& agent_count) const;
 		void pretty_print(std::ostream& out, const AgentSet& agents) const;
 
 	public:
@@ -120,12 +119,12 @@ namespace stosim {
 
 		AgentSet environment() const;
 
-		std::vector<std::tuple<std::string, agent_count_t>> translate_state(std::vector<agent_count_t> state) const;
-		coro::generator<VesselStep> simulate() const;
+		std::vector<std::tuple<std::string, agent_count_t>> translate_state(std::vector<agent_count_t> agent_count) const;
+		coro::generator<const VesselState&> simulate() const;
 
 		template<typename F>
-		coro::generator<std::invoke_result_t<F, coro::generator<VesselStep>>> multi_simulate(size_t simulation_count, F f) const {
-			std::vector<std::future<std::invoke_result_t<F, coro::generator<VesselStep>>>> futures;
+		coro::generator<std::invoke_result_t<F, coro::generator<const VesselState&>>> multi_simulate(size_t simulation_count, F f) const {
+			std::vector<std::future<std::invoke_result_t<F, coro::generator<const VesselState&>>>> futures;
 			for (auto i = 0; i < simulation_count; i++) {
 				futures.push_back(std::async(std::launch::async, [&]() {
 					return f(simulate());

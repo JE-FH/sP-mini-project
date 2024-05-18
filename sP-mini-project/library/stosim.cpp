@@ -15,7 +15,7 @@ namespace stosim {
 		return ReactionRule(_agent_set, _rate, std::move(product));
 	}
 
-	std::optional<std::tuple<std::size_t, double>> Vessel::get_next_reaction_rule(const std::vector<agent_count_t>& state) const
+	std::optional<std::tuple<std::size_t, double>> Vessel::get_next_reaction_rule(const std::vector<agent_count_t>& agent_count) const
 	{
 		static thread_local auto mt = std::mt19937(std::random_device()());
 
@@ -25,9 +25,9 @@ namespace stosim {
 			const auto& reaction_rule = _reaction_rules[i];
 			const auto& reactant_tokens = reaction_rule.get_reactants().get_agent_tokens();
 			
-			auto reactant_product = 1;
+			auto reactant_product = (std::size_t) 1;
 			for (const auto& token : reactant_tokens) {
-				reactant_product = reactant_product * state[token];
+				reactant_product = reactant_product * agent_count[token];
 			}
 
 			if (reactant_product > 0) {
@@ -61,26 +61,27 @@ namespace stosim {
 		return AgentSet();
 	}
 
-	std::vector<std::tuple<std::string, agent_count_t>> Vessel::translate_state(std::vector<agent_count_t> state) const
+	std::vector<std::tuple<std::string, agent_count_t>> Vessel::translate_state(std::vector<agent_count_t> agent_count) const
 	{
 		std::vector<std::tuple<std::string, agent_count_t>> rv;
-		for (auto i = 0; i < state.size(); i++) {
+		for (auto i = 0; i < agent_count.size(); i++) {
 			auto name = _reaction_symbols.lookup(i);
-			rv.push_back(std::make_tuple(name, state[i]));
+			rv.push_back(std::make_tuple(name, agent_count[i]));
 		}
 		return rv;
 	}
 
-	coro::generator<VesselStep> Vessel::simulate() const
+	coro::generator<const VesselState&> Vessel::simulate() const
 	{
-		auto state = _initial_state;
-		auto time = 0.0;
-		co_yield VesselStep{
-				.state = state,
-				.time = time
+		VesselState state {
+			.agent_count = _initial_state,
+			.time = 0
 		};
+
+		co_yield state;
+
 		while (true) {
-			auto rule_and_delay = get_next_reaction_rule(state);
+			auto rule_and_delay = get_next_reaction_rule(state.agent_count);
 			if (!rule_and_delay.has_value()) {
 				co_return;
 			}
@@ -89,20 +90,17 @@ namespace stosim {
 
 			const auto& rule = _reaction_rules[rule_index];
 
-			time += delay;
+			state.time += delay;
 
 			for (auto reactant : rule.get_reactants().get_agent_tokens()) {
-				state[reactant] -= 1;
+				state.agent_count[reactant] -= 1;
 			}
 
 			for (auto product : rule.get_products().get_agent_tokens()) {
-				state[product] += 1;
+				state.agent_count[product] += 1;
 			}
 
-			co_yield VesselStep{
-				.state = state,
-				.time = time
-			};
+			co_yield state;
 		}
 	}
 

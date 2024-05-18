@@ -22,13 +22,13 @@ void visualize(stosim::Vessel& vessel, const std::string& name, double duration)
 	}
 	
 	auto simulation = vessel.simulate()
-		| std::views::take_while([=](stosim::VesselStep vesselStep) { return vesselStep.time < duration; });
+		| std::views::take_while([=](const auto& state) { return state.time < duration; });
 
 	for (const auto& step : simulation) {
-		for (auto i = 0; i < step.state.size(); i++) {
-			ys[i].push_back((PLFLT)step.state[i]);
-			ymin = std::min((PLFLT)step.state[i], ymin);
-			ymax = std::max((PLFLT)step.state[i], ymax);
+		for (auto i = 0; i < step.agent_count.size(); i++) {
+			ys[i].push_back((PLFLT)step.agent_count[i]);
+			ymin = std::min((PLFLT)step.agent_count[i], ymin);
+			ymax = std::max((PLFLT)step.agent_count[i], ymax);
 		}
 		xs.push_back(step.time);
 	}
@@ -50,17 +50,17 @@ void visualize(stosim::Vessel& vessel, const std::string& name, double duration)
 	// Plot the data that was prepared above.
 	for (auto y : ys) {
 		pls->col0(i++);
-		pls->line(xs.size(), xs.data(), y.data());
+		pls->line((PLINT) xs.size(), xs.data(), y.data());
 	}
 }
 
-int get_max_hospitalizations(int N) {
+stosim::agent_count_t get_max_hospitalizations(int N) {
 	auto setup = covid19(N);
 	auto H_token = setup.H.get_agent_token();
 	return std::ranges::max(
 		setup.vessel.simulate() |
-		std::views::take_while([](stosim::VesselStep vesselStep) { return vesselStep.time < 100; }) |
-		std::views::transform([&](stosim::VesselStep step) { return step.state[H_token]; })
+		std::views::take_while([](const auto& state) { return state.time < 100; }) |
+		std::views::transform([&](const auto& state) { return state.agent_count[H_token]; })
 	);
 }
 
@@ -109,20 +109,20 @@ void do_multithreading(std::ostream& results) {
 	
 	const auto count = 100;
 
-	auto simulation_results = setup.vessel.multi_simulate(count, [=](coro::generator<stosim::VesselStep> simulation) -> stosim::agent_count_t {
+	auto simulation_results = setup.vessel.multi_simulate(count, [=](coro::generator<const stosim::VesselState&> simulation) -> stosim::agent_count_t {
 		return std::ranges::max(simulation |
-			std::views::take_while([](stosim::VesselStep step) { return step.time < 100; }) |
-			std::views::transform([&](stosim::VesselStep step) ->  stosim::agent_count_t { return step.state[H_token]; })
+			std::views::take_while([](const auto& state) { return state.time < 100; }) |
+			std::views::transform([&](const auto& state) ->  stosim::agent_count_t { return state.agent_count[H_token]; })
 		);
 	});
 
-	double total = std::ranges::fold_left(simulation_results, 0.0, 
-		[](double acc, stosim::agent_count_t next) { return acc + ((double)next); });
+	double total = std::ranges::fold_left(simulation_results, 0,
+		[](double acc, stosim::agent_count_t next) { return acc + next; });
 	results << "\nMultithreaded testing:\n";
-	results << "Peak total: " << total << ", average: " << total / count << "\n";
+	results << "Peak total: " << total << ", average: " << ((double) total) / count << "\n";
 }
 
-int main(int argc, char** argv) {
+int main() {
 	std::ofstream results("results.txt");
 
 	estimate_hospitalizations(results);

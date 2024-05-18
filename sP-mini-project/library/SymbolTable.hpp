@@ -1,5 +1,6 @@
 #pragma once
 #include <unordered_map>
+#include <algorithm>
 
 namespace stosim {
 	struct SymbolDoesNotExistException : public std::exception {
@@ -22,6 +23,15 @@ namespace stosim {
 				throw SymbolDoesNotExistException("lookup() The requested symbol does not exist");
 			}
 			return it->second;
+		}
+
+		const K* lookup_by_value(const V& v) const {
+			for (const auto& kv : _symbol_map) {
+				if (kv.second == v) {
+					return &kv.first;
+				}
+			}
+			return nullptr;
 		}
 
 		void store(K k, V v) {

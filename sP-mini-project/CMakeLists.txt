@@ -23,4 +23,3 @@ set_property(TARGET unit_tests PROPERTY CXX_STANDARD 23)
 set_property(TARGET demo PROPERTY CXX_STANDARD 23)
 set_property(TARGET stosim_bm PROPERTY CXX_STANDARD 23)
 
-# TODO: Add tests and install targets if needed.
