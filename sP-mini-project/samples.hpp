@@ -1,11 +1,6 @@
 #include "library/stosim.hpp"
 
-struct Covid19Setup {
-	stosim::Vessel vessel;
-	stosim::AgentSet H;
-};
-
-Covid19Setup covid19(size_t N) {
+stosim::Vessel covid19(size_t N) {
 	auto v = stosim::Vessel("COVID19 SEIHR: " + std::to_string(N));
 	const auto eps = 0.0009; // initial fraction of infectious
 	const auto I0 = size_t(std::round(eps * N)); // initial infectious
@@ -28,10 +23,7 @@ Covid19Setup covid19(size_t N) {
 	v.add(I >> gamma >>= R); // infectious becomes removed
 	v.add(I >> kappa >>= H); // infectious becomes hospitalized
 	v.add(H >> tau >>= R); // hospitalized becomes removed
-	return Covid19Setup{
-		.vessel = v,
-		.H = H
-	};
+	return v;
 }
 
 stosim::Vessel circadian_rhythm() {
@@ -78,5 +70,14 @@ stosim::Vessel circadian_rhythm() {
 	v.add(R >> deltaR >>= env);
 	v.add(MA >> deltaMA >>= env);
 	v.add(MR >> deltaMR >>= env);
+	return v;
+}
+
+stosim::Vessel figure1() {
+	auto v = stosim::Vessel { "Figure 1" };
+	const auto A = v.add("A", 50);
+	const auto B = v.add("B", 50);
+	const auto C = v.add("C", 1);
+	v.add((A + C) >> 0.001 >>= B + C);
 	return v;
 }

@@ -6,6 +6,7 @@
 #include <optional>
 #include <future>
 #include <coro/coro.hpp>
+#include <random>
 
 namespace stosim {
 	using agent_token_t = size_t;
@@ -14,7 +15,9 @@ namespace stosim {
 	class AgentSetAndRate;
 	class ReactionRule;
 
+	/* An agent set holds a set of agents which can be composed using multiple operators*/
 	class AgentSet {
+		/*Using a set, since each agent set should only contain distinct agents*/
 		std::set<agent_token_t> _agents;
 	public:
 		AgentSet(const AgentSet& other) = default;
@@ -29,6 +32,10 @@ namespace stosim {
 			_agents.insert(agent_token);
 		}
 
+		/* According to requirement 1 we should create overloads that allows us to
+		   write reaction rules directly in the c++. Therefore a operator for +
+		   combines two agent sets into a single one containing all the agents from
+		   both agent sets*/
 		AgentSet operator+(const AgentSet& other) const {
 			AgentSet rv;
 			rv._agents.insert_range(_agents);
@@ -47,6 +54,9 @@ namespace stosim {
 			return *std::cbegin(_agents);
 		}
 		
+		/* Requirement 1 also requires that we should be able to set the rate of
+		   a reaction using >>, this creates a new class called AgentSetAndRate
+		   which suprisingly contains an agent set and a rate*/
 		AgentSetAndRate operator>>(double rate) const;
 	};
 
@@ -69,6 +79,9 @@ namespace stosim {
 			return _rate;
 		}
 
+		/* Requirement 1 requires that we can create a reaction rule using the >>= operator
+		   since we created the AgentSetAndRate from the reactants and the rate, we only need
+		   the products of the reaction. This is specified on the right side of this opreator.*/
 		ReactionRule operator>>=(AgentSet product) const;
 	};
 
@@ -108,8 +121,7 @@ namespace stosim {
 		SymbolTable<agent_token_t, std::string> _reaction_symbols;
 		std::vector<agent_count_t> _initial_state;
 
-		std::optional<std::tuple<std::size_t, double>> get_next_reaction_rule(const std::vector<agent_count_t>& agent_count) const;
-		void pretty_print(std::ostream& out, const AgentSet& agents) const;
+		std::optional<std::tuple<std::size_t, double>> get_next_reaction_rule(const std::vector<agent_count_t>& agent_count, std::mt19937& mt) const;
 
 	public:
 		Vessel(std::string name) : _name(std::move(name)) {}
@@ -120,6 +132,7 @@ namespace stosim {
 		AgentSet environment() const;
 
 		std::vector<std::tuple<std::string, agent_count_t>> translate_state(std::vector<agent_count_t> agent_count) const;
+
 		coro::generator<const VesselState&> simulate() const;
 
 		template<typename F>
@@ -137,11 +150,18 @@ namespace stosim {
 			
 			co_return;
 		}
-
+		/* Requirement 2 says that we should be able to pretty print the
+		   reaction network, therfore we overload the << operator for
+		   ostreams */
 		friend std::ostream& operator<<(std::ostream& out, const Vessel& vessel);
-
+		/* Requiredment 2 also states that the network shoule be printable
+		   in some graph format, here i have chosen the dot format */
 		void pretty_print_dot(std::ostream& out) const;
 
 		const std::vector<agent_count_t>& get_initial_state() const;
+
+		const SymbolTable<agent_token_t, std::string>& get_reaction_symbols() const;
+
+		const std::string& get_name() const;
 	};
 }

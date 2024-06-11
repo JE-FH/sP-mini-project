@@ -1,30 +1,68 @@
 #include <doctest/doctest.h>
 #include <string>
+#include <algorithm>
 #include <sstream>
 #include "library/SymbolTable.hpp"
 #include "library/stosim.hpp"
 
+//Requirement 3: Demonstrating the usage of the symbol table
 TEST_CASE("symbol table")
 {
-	SUBCASE("Normal store and lookup") {
-		auto st = stosim::SymbolTable<std::string, int>();
-		st.store("ab", 1);
-		st.store("ba", 2);
-		st.store("c", 3);
-		CHECK(st.lookup("ab") == 1);
-		CHECK(st.lookup("ba") == 2);
-		CHECK(st.lookup("c") == 3);
-	}
+	auto st = stosim::SymbolTable<std::string, int>();
+	st.store("ab", 7);
+	st.store("ba", 1);
+	st.store("aba", 100);
+	st.store("bab", 2);
+	st.store("abab", 6);
+	st.store("baba", 4);
+	st.store("ababa", 200);
 
 	SUBCASE("Duplicate store key") {
-		auto st = stosim::SymbolTable<std::string, int>();
-		st.store("ab", 1);
 		CHECK_THROWS_AS(st.store("ab", 1), stosim::SymbolAlreadyExistsException);
 	}
 
 	SUBCASE("Unknown symbol lookup") {
-		auto st = stosim::SymbolTable<std::string, int>();
-		CHECK_THROWS_AS(st.lookup("ab"), stosim::SymbolDoesNotExistException);
+		CHECK_THROWS_AS(st.lookup("pa"), stosim::SymbolDoesNotExistException);
+	}
+
+	SUBCASE("Lookup by value throws when value does not exist") {
+		CHECK_THROWS_AS(st.lookup_by_value(8), stosim::SymbolDoesNotExistException);
+	}
+
+	SUBCASE("Normal store and lookup") {
+		CHECK(st.lookup("ab") == 7);
+		CHECK(st.lookup("ba") == 1);
+		CHECK(st.lookup("aba") == 100);
+		CHECK(st.lookup("bab") == 2);
+		CHECK(st.lookup("abab") == 6);
+		CHECK(st.lookup("baba") == 4);
+		CHECK(st.lookup("ababa") == 200);
+	}
+
+	SUBCASE("Lookup by value") {
+		CHECK(st.lookup_by_value(7) == "ab");
+		CHECK(st.lookup_by_value(1) == "ba");
+		CHECK(st.lookup_by_value(100) == "aba");
+		CHECK(st.lookup_by_value(2) == "bab");
+		CHECK(st.lookup_by_value(6) == "abab");
+		CHECK(st.lookup_by_value(4) == "baba");
+		CHECK(st.lookup_by_value(200) == "ababa");
+	}
+
+	SUBCASE("Symbol iterator test") {
+		auto contents = st.symbol_table() | std::ranges::to<std::vector>();
+		//Even though, under the current implementation, we dont want to rely on that implementation detail in this test
+		//Therefore we sort the contents such that we can compare it directly with another vector
+		std::ranges::sort(contents, std::less<std::string> {}, [](const std::pair<std::string, int>& p) -> const std::string& {return p.first; });
+		CHECK(contents == std::vector<std::pair<std::string, int>> {
+			std::make_pair("ab", 7),
+			std::make_pair("aba", 100),
+			std::make_pair("abab", 6),
+			std::make_pair("ababa", 200),
+			std::make_pair("ba", 1),
+			std::make_pair("bab", 2),
+			std::make_pair("baba", 4)
+		});
 	}
 }
 

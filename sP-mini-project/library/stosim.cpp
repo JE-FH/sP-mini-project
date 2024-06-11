@@ -15,10 +15,9 @@ namespace stosim {
 		return ReactionRule(_agent_set, _rate, std::move(product));
 	}
 
-	std::optional<std::tuple<std::size_t, double>> Vessel::get_next_reaction_rule(const std::vector<agent_count_t>& agent_count) const
+	/*Requirement 4: here the next reaction rule that will be used is calculated using the given algorithm*/
+	std::optional<std::tuple<std::size_t, double>> Vessel::get_next_reaction_rule(const std::vector<agent_count_t>& agent_count, std::mt19937& mt) const
 	{
-		static thread_local auto mt = std::mt19937(std::random_device()());
-
 		std::optional<std::size_t> current_best = std::nullopt;
 		double lowest_delay = std::numeric_limits<double>::max();
 		for (auto i = 0; i < _reaction_rules.size(); i++) {
@@ -71,6 +70,9 @@ namespace stosim {
 		return rv;
 	}
 
+	/*Requirement 4 here we implement the simulation using the rules.
+	* The simulation steps are returned by yielding them.
+	* */
 	coro::generator<const VesselState&> Vessel::simulate() const
 	{
 		VesselState state {
@@ -78,10 +80,13 @@ namespace stosim {
 			.time = 0
 		};
 
+		auto rd = std::random_device();
+		auto mt = std::mt19937(rd());
+
 		co_yield state;
 
 		while (true) {
-			auto rule_and_delay = get_next_reaction_rule(state.agent_count);
+			auto rule_and_delay = get_next_reaction_rule(state.agent_count, mt);
 			if (!rule_and_delay.has_value()) {
 				co_return;
 			}
@@ -107,9 +112,8 @@ namespace stosim {
 	void Vessel::pretty_print_dot(std::ostream& out) const
 	{
 		out << "digraph {\n";
-		auto agent_symbol_map = _reaction_symbols.get_map();
 		out << R"(env[label="Environment", shape="box", style="filled", fillcolor="red"];)" << '\n';
-		for (const auto& agent : agent_symbol_map) {
+		for (const auto& agent : _reaction_symbols.symbol_table()) {
 			out << "s" << agent.first << "[label=\"" << agent.second << R"(", shape="box", style="filled", fillcolor="cyan"];)" << "\n";
 		}
 		int reaction_id = 0;
@@ -137,6 +141,14 @@ namespace stosim {
 		return _initial_state;
 	}
 
+	const SymbolTable<agent_token_t, std::string>& Vessel::get_reaction_symbols() const {
+		return _reaction_symbols;
+	}
+
+	const std::string& Vessel::get_name() const {
+		return _name;
+	}
+
 	void concat_agents(std::ostream& out, const AgentSet& agent_set, const SymbolTable<agent_token_t, std::string>& symbol_table) {
 		if (agent_set.get_agent_tokens().size() == 0) {
 			out << "Environment";
@@ -151,7 +163,7 @@ namespace stosim {
 			out << symbol_table.lookup(agent_token);
 		}
 	}
-
+	
 	std::ostream& operator<<(std::ostream& out, const Vessel& vessel) {
 		for (const auto& reaction_rule : vessel._reaction_rules) {
 			concat_agents(out, reaction_rule.get_reactants(), vessel._reaction_symbols);

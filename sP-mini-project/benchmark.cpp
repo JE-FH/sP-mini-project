@@ -5,13 +5,13 @@
 #include "samples.hpp"
 
 void single_threaded(benchmark::State& agent_count) {
-	auto setup = covid19(10000);
-	auto H_token = setup.H.get_agent_token();
+	auto vessel = covid19(10000);
+	auto H_token = vessel.get_reaction_symbols().lookup_by_value("H");
 	for (auto _ : agent_count) {
 		stosim::agent_count_t total = 0;
 		for (size_t i = 0; i < 100; i++) {
 			total += std::ranges::max(
-				setup.vessel.simulate() |
+				vessel.simulate() |
 				std::views::take_while([](const auto& state) { return state.time < 100; }) |
 				std::views::transform([&](const auto& state) { return state.agent_count[H_token]; })
 			);
@@ -24,10 +24,10 @@ void single_threaded(benchmark::State& agent_count) {
 BENCHMARK(single_threaded);
 
 void multi_threaded(benchmark::State& agent_count) {
-	auto setup = covid19(10000);
-	auto H_token = setup.H.get_agent_token();
+	auto vessel = covid19(10000);
+	auto H_token = vessel.get_reaction_symbols().lookup_by_value("H");
 	for (auto _ : agent_count) {
-		auto simulation_results = setup.vessel.multi_simulate(100, [=](auto simulation) -> stosim::agent_count_t {
+		auto simulation_results = vessel.multi_simulate(100, [=](auto simulation) -> stosim::agent_count_t {
 			return std::ranges::max(simulation |
 				std::views::take_while([](const auto& state) { return state.time < 100; }) |
 				std::views::transform([&](const auto& state) ->  stosim::agent_count_t { return state.agent_count[H_token]; })
@@ -44,10 +44,10 @@ void multi_threaded(benchmark::State& agent_count) {
 BENCHMARK(multi_threaded);
 
 void multi_threaded2(benchmark::State& agent_count) {
-	auto setup = covid19(10000);
-	auto H_token = setup.H.get_agent_token();
+	auto vessel = covid19(10000);
+	auto H_token = vessel.get_reaction_symbols().lookup_by_value("H");
 	for (auto _ : agent_count) {
-		auto simulation_results = setup.vessel.multi_simulate(100, [=](auto simulation) -> stosim::agent_count_t {
+		auto simulation_results = vessel.multi_simulate(100, [=](auto simulation) -> stosim::agent_count_t {
 			return std::ranges::max(simulation |
 				std::views::take_while([](const auto& state) { return state.time < 100; }) |
 				std::views::transform([&](const auto& state) ->  stosim::agent_count_t { return state.agent_count[H_token]; })
