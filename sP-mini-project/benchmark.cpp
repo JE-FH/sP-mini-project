@@ -4,6 +4,7 @@
 #include "library/stosim.hpp"
 #include "samples.hpp"
 
+//Requirement 10: benchmarking single threaded for covid19 100 times
 void single_threaded(benchmark::State& agent_count) {
 	auto vessel = covid19(10000);
 	auto H_token = vessel.get_reaction_symbols().lookup_by_value("H");
@@ -23,6 +24,7 @@ void single_threaded(benchmark::State& agent_count) {
 
 BENCHMARK(single_threaded);
 
+//Requirement 10: benchmarking multithreaded threaded for covid19 100 times
 void multi_threaded(benchmark::State& agent_count) {
 	auto vessel = covid19(10000);
 	auto H_token = vessel.get_reaction_symbols().lookup_by_value("H");
@@ -42,25 +44,5 @@ void multi_threaded(benchmark::State& agent_count) {
 }
 
 BENCHMARK(multi_threaded);
-
-void multi_threaded2(benchmark::State& agent_count) {
-	auto vessel = covid19(10000);
-	auto H_token = vessel.get_reaction_symbols().lookup_by_value("H");
-	for (auto _ : agent_count) {
-		auto simulation_results = vessel.multi_simulate(100, [=](auto simulation) -> stosim::agent_count_t {
-			return std::ranges::max(simulation |
-				std::views::take_while([](const auto& state) { return state.time < 100; }) |
-				std::views::transform([&](const auto& state) ->  stosim::agent_count_t { return state.agent_count[H_token]; })
-			);
-			});
-
-		stosim::agent_count_t total = std::ranges::fold_left(simulation_results, 0,
-			[](stosim::agent_count_t acc, stosim::agent_count_t next) { return acc + next; });
-		benchmark::DoNotOptimize(total);
-		benchmark::ClobberMemory();
-	}
-}
-
-BENCHMARK(multi_threaded2);
 
 BENCHMARK_MAIN();

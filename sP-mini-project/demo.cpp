@@ -8,7 +8,7 @@
 #include <fstream>
 #include "samples.hpp"
 
-
+/* Requirement 6: The simulation is visualized using a plotting library called plplot */
 void visualize(const stosim::Vessel& vessel, double duration, const std::vector<stosim::agent_token_t>& agents) {
 	std::vector<std::vector<PLFLT>> ys;
 	std::vector<PLFLT> xs;
@@ -55,6 +55,8 @@ void visualize(const stosim::Vessel& vessel, double duration, const std::vector<
 	}
 }
 
+/* requirement 7: demonstrating using the generator to sget the max agent count
+   withut storing all entire trajectory data*/
 stosim::agent_count_t get_max_hospitalizations(int N) {
 	auto v = covid19(N);
 	auto H_token = v.get_reaction_symbols().lookup_by_value("H");
@@ -89,6 +91,17 @@ void generate_graphs(std::ostream& results) {
 		}
 	);
 	results << R"(covid 19 graph written to "Covid 19.svg")" << '\n';
+
+	auto f1 = figure1();
+	const auto& f1_symbols = f1.get_reaction_symbols();
+	visualize(f1, 2000, std::vector<stosim::agent_count_t> {
+		f1_symbols.lookup_by_value("A"),
+		f1_symbols.lookup_by_value("B"),
+		f1_symbols.lookup_by_value("C")
+	});
+
+	results << R"(figure 1 graph written to "Figure 1.svg")" << '\n';
+
 }
 
 void estimate_hospitalizations(std::ostream& results) {
@@ -120,6 +133,9 @@ void print_reactions(std::ostream& results) {
 	results << R"(circadian rhythm reaction rules written to "circadian rhythm.dot")" << '\n';
 }
 
+/* Requirement 8, demonstrating multithreading to get an 
+ * average over multiple simulations
+*/
 void do_multithreading(std::ostream& results) {
 	const auto v = covid19(10000);
 	const auto H_token = v.get_reaction_symbols().lookup_by_value("H");
@@ -148,12 +164,5 @@ int main() {
 	generate_graphs(results);
 	print_reactions(results);
 	do_multithreading(results);
-	auto v = figure1();
-	const auto& reaction_symbols = v.get_reaction_symbols();
-	visualize(v, 2000, std::vector<stosim::agent_count_t> {
-		reaction_symbols.lookup_by_value("A"),
-		reaction_symbols.lookup_by_value("B"),
-		reaction_symbols.lookup_by_value("C")
-	});
 	return 0;
 }

@@ -70,7 +70,7 @@ namespace stosim {
 		return rv;
 	}
 
-	/*Requirement 4 here we implement the simulation using the rules.
+	/*Requirement 4 & 7 here we implement the simulation using the rules.
 	* The simulation steps are returned by yielding them.
 	* */
 	coro::generator<const VesselState&> Vessel::simulate() const

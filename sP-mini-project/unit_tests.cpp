@@ -6,6 +6,7 @@
 #include "library/stosim.hpp"
 
 //Requirement 3: Demonstrating the usage of the symbol table
+//Requirement 9: Unit tests for symbol table
 TEST_CASE("symbol table")
 {
 	auto st = stosim::SymbolTable<std::string, int>();
@@ -153,7 +154,7 @@ TEST_CASE("ReactionRule") {
 		CHECK(product_tokens.size() == 2);
 	}
 }
-
+//Requirement 9: Unit tests for pretty printing
 TEST_CASE("Vessel") {
 	auto v = stosim::Vessel("vessel test");
 	auto A = v.add("A", 23);

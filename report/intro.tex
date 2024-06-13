@@ -1,0 +1,49 @@
+\section{Build guide}
+The project uses cmake and vcpkg. Vcpkg must be installed and integrated for the cmake script to work.
+
+\section {Results}
+
+When running the demo executable, all the figures from requirement 5 and 6 are generated and results are generated for requirement 7 and 8.
+The graphs and human readable forms for the reaction networks are also generated to conform with requirement 3
+\VerbatimInput{../out/build/x64-release/sP-mini-project/results.txt}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{media/Figure 1.png}
+    \caption{Figure 1}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{media/Covid 19.png}
+    \caption{Figure 2}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{media/Circadian rhythm.png}
+    \caption{Figure 3}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.5\textwidth]{media/covid19 reaction graph.png}
+    \caption{Reaction chain graph}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \begin{tabular}{ c c }
+        \hline
+        version & time \\
+        \hline
+        Single threaded & $623.02525$ ms \\
+        Multi threaded & $45.158101$ ms \\
+        \hline
+    \end{tabular}
+    \caption{Benchmark of getting the average maximum hospitalization over 100 iterations. Run on  intel processor with 6 P-cores and 8 E-cores with combined 20 threads}
+\end{figure}
+
+Using multithreading, we achieve a $\frac{623.02525}{45.158101}\approx13.797$ times speed up. It should scale very well since each simulation can run completely independenly because there are no synchronization between threads. However, since the CPU has multithreading and different CPU core types as well as sharing many other resources, we dont see a complete linear speedup.
+\FloatBarrier
+\newpage
