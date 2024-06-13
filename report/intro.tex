@@ -1,5 +1,5 @@
 \section{Build guide}
-The project uses cmake and vcpkg. Vcpkg must be installed and integrated for the cmake script to work.
+The project uses cmake and vcpkg. Vcpkg must be installed and integrated, then the toolchain file from vcpkg needs be specified when the cmake build is initialized. The source can only be compiled MSVC 19.40. GCC lacks some c++23 features (\texttt{insert_range} on \texttt{std::set}) and clang cannot build plplot.
 
 \section {Results}
 
